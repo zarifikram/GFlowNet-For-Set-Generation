@@ -28,9 +28,24 @@ class SetGenerationEnv(Env):
         mask = torch.ones(len(s), self.num_actions)
 
         chosen = s[torch.arange(len(s)), curr.long()] != 0
-        right_edge = curr == self.size - 1
-        left_edge = curr == 0
+        # right_edge = curr == self.size - 1
+        # left_edge = curr == 0
+        # aka don't go left as all the slots to the left are filled
+        # we want values to the left of each curr. So curr = [3, 2] and s = [[1, 2, 3, 4], [1, 2, 3, 4]]
+        # then we want [[1, 2, 3], [1, 2]]
 
+        
+        result = [(row[:c.item()] != 0).all()   for row, c in zip(s, curr.long())]
+        no_val_to_the_left = torch.stack(result)
+        # print(no_val_to_the_left)
+
+        result = [(row[c.item() + 1 :] != 0).all()   for row, c in zip(s, curr.long())]
+        no_val_to_the_right = torch.stack(result)
+        # print(no_val_to_the_right)
+
+        # left_edge = (curr == 0)
+        # right_edge = (curr == self.size - 1)
+        
 
         # if each s[:, :] is filled, then terminate
         done = (s != 0).all(dim=1)
@@ -38,8 +53,10 @@ class SetGenerationEnv(Env):
        
         mask[notdone, self.num_actions - 1] = 0
         mask[chosen, :self.num_actions - 3] = 0
-        mask[left_edge, self.num_actions - 3] = 0
-        mask[right_edge, self.num_actions - 2] = 0
+        # mask[left_edge, self.num_actions - 3] = 0
+        # mask[right_edge, self.num_actions - 2] = 0
+        mask[no_val_to_the_left, self.num_actions - 3] = 0
+        mask[no_val_to_the_right, self.num_actions - 2] = 0
 
         # only if terminated, do not hang around
         mask[done, self.num_actions - 3] = 0

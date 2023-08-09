@@ -68,12 +68,16 @@ class GFlowNet(nn.Module):
         curr = curr0.clone()
         done = torch.BoolTensor([False] * len(s))
         log = Log(s0, curr0, self.backward_policy, self.total_flow, self.env) if return_log else None
-        cnt = 0
+        traj_length = 0
         while not done.all():
             probs = self.forward_probs(s[~done], curr[~done])
+            # print(f"s: {s[~done]}")
+            # print(f"curr: {curr[~done]}")
+            # print(f"probs: {probs}")
             actions = Categorical(probs).sample()
+            # print(f"actions: {actions}")
             s[~done], curr[~done] = self.env.update(s[~done], curr[~done], actions)
-            cnt += 1
+            traj_length += 1
             if (curr < 0).any():
                 print("Invalid state encountered")
                 print(s)
@@ -84,13 +88,9 @@ class GFlowNet(nn.Module):
                 print(s)
                 print(curr)
         
-            if cnt > 2000:
-                print("Too many steps")
-                cnt = 0
-                print(s[~done])
-                print(curr[~done])
-                print(actions)
-                print(probs)
+            # if cnt > 5:
+            #     print("Too many steps")
+            #     break
             if return_log:
                 log.log(s, curr, probs, actions, done)
         
@@ -98,7 +98,7 @@ class GFlowNet(nn.Module):
             done[~done] = terminated
         
         # print(f"SAMPLED {cnt} STEPS")
-        return (s, log) if return_log else s
+        return (s, log, traj_length) if return_log else (s, traj_length)
     
     def evaluate_trajectories(self, traj, actions):
         """

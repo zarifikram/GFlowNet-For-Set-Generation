@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torch.nn.functional import relu, leaky_relu
+from torch.nn.functional import relu, leaky_relu, one_hot
 from torch.nn.functional import softmax
 
 class ForwardPolicy(nn.Module):
@@ -22,29 +22,26 @@ class BackwardPolicy:
     def __init__(self, state_dim, num_actions):
         super().__init__()
         self.num_actions = num_actions
-        self.size = int(state_dim / (num_actions - 3))
+        self.size = state_dim # no one-hot encoding, so size and state_dim are the same
     
     
     def __call__(self, s, curr):
-        # if rightmost, surely didn't come from right
-        # if leftmost, surely didn't come from left
 
         left_edge = curr == 0
         right_edge = curr == self.size - 1
-        # received_choice = s.view(len(s), self.size, self.num_actions - 3).sum(dim=-1)[torch.arange(len(s)), curr.long()] == 1
-
+        
         # find the index of the chosen number
-        k = s.clone()
-        k[k < 0.2] = 0
-        chosen_num = k.view(len(k), self.size, self.num_actions - 3)[torch.arange(len(k)), curr.long()]
-
-        probs = 1 * torch.ones(len(k), self.num_actions)
-        probs[:, :self.num_actions - 3] = chosen_num
-        probs[left_edge, self.num_actions - 2] = 0
-        probs[right_edge, self.num_actions - 3] = 0
+        chosen_num = s[torch.arange(len(s)), curr.long()]
+        has_chosen = chosen_num != 0
+     
+        probs = 1 * torch.ones(len(s), self.num_actions)
+        probs[has_chosen, : self.num_actions - 3] = one_hot(chosen_num[has_chosen].long() - 1, self.num_actions - 3).float()
+        probs[~has_chosen, : self.num_actions - 3] = 0
+        probs[left_edge, self.num_actions - 2] = 0 # if leftmost, surely didn't come from left
+        probs[right_edge, self.num_actions - 3] = 0 # if rightmost, surely didn't come from right
         probs[:, -1] = 0 # disregard termination
         
-        # now normalize
+        # # now normalize
         probs = probs / probs.sum(dim=1).view(-1, 1)
         return probs
 
