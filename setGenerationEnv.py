@@ -49,7 +49,7 @@ class SetGenerationEnv(Env):
         done = (s != 0).all(dim=1)
         notdone = ~done
        
-        mask[notdone, self.num_actions - 1] = 0
+        # mask[notdone, self.num_actions - 1] = 0
         mask[chosen, :self.num_actions - 3] = 0
         mask[left_edge, self.num_actions - 3] = 0
         mask[right_edge, self.num_actions - 2] = 0
@@ -65,7 +65,10 @@ class SetGenerationEnv(Env):
         
     def reward(self, s):
         s = self.getStateForm(s)
-        R0 =  (s[:, 0] - s[:, 1]) ** 2 + (s[:, 2] - s[:, 3]) ** 2 + 1e-2
+       
+        R0 = (s[:, 0] - s[:, 1]) ** 2 + (s[:, 2] - s[:, 3]) ** 2 + 1e-2
+        # if any has 0 in it, R0 for that sample will be 1e-2
+        R0[(s == 0).any(dim = 1)] = 1e-2
         # R0 = 5**(R0 / 13**2)
         # R0 = R0/10
         # R0[R0 < 1500] = 1e-8
