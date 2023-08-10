@@ -101,6 +101,7 @@ class GFlowNet(nn.Module):
             actions: The actions that produced the trajectories in traj
         """
         num_samples = len(traj)
+    
         traj = traj.reshape(-1, traj.shape[-1])
         actions = actions.flatten()
         finals = traj[actions == self.env.num_actions - 1]
