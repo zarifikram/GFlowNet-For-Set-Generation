@@ -1,7 +1,7 @@
 import torch
 
 class Log:
-    def __init__(self, s0, curr0, backward_policy, total_flow, env):
+    def __init__(self, s0, backward_policy, total_flow, env):
         """
         Initializes a Stats object to record sampling statistics from a
         GFlowNet (e.g. trajectories, forward and backward probabilities,
@@ -23,15 +23,13 @@ class Log:
         self.total_flow = total_flow
         self.env = env
         self._traj = [s0.view(len(s0), 1, -1)]
-        # self._currtraj = [curr0.view(len(s0), 1)]
-        self._currtraj = [curr0]
         self._fwd_probs = []
         self._back_probs = None
         self._actions = []
         self.rewards = torch.zeros(len(s0))
         self.num_samples = s0.shape[0]
     
-    def log(self, s, curr, probs, actions, done):
+    def log(self, s, probs, actions, done):
         """
         Logs relevant information about each sampling step
         
@@ -52,15 +50,11 @@ class Log:
         active, just_finished = ~done, ~done
         active[active == True] = ~had_terminating_action
         just_finished[just_finished == True] = had_terminating_action
-   
+    
         states = self._traj[-1].squeeze(1).clone()
         states[active] = s[active]
         self._traj.append(states.view(self.num_samples, 1, -1))
         
-        currs = self._currtraj[-1].clone()
-        currs[active] = curr[active]
-        self._currtraj.append(currs)
-      
         fwd_probs = torch.ones(self.num_samples, 1)
         fwd_probs[~done] = probs.gather(1, actions.unsqueeze(1))
         self._fwd_probs.append(fwd_probs)
@@ -76,12 +70,6 @@ class Log:
         if type(self._traj) is list:
             self._traj = torch.cat(self._traj, dim=1)[:, :-1, :]
         return self._traj
-    
-    @property
-    def currtraj(self):
-        if type(self._currtraj) is list:
-            self._currtraj = torch.stack(self._currtraj).T[:, :-1]
-        return self._currtraj
     
     @property
     def fwd_probs(self):
@@ -102,15 +90,11 @@ class Log:
         
         s = self.traj[:, 1:, :].reshape(-1, self.env.state_dim)
         prev_s = self.traj[:, :-1, :].reshape(-1, self.env.state_dim)
-       
-        curr = self.currtraj[:, 1:].reshape(-1, 1).squeeze(1)
-        prev_curr = self.currtraj[:, :-1].reshape(-1, 1).squeeze(1)
-
         actions = self.actions[:, :-1].flatten()
         
         terminated = (actions == -1) | (actions == self.env.num_actions - 1)
         zero_to_n = torch.arange(len(terminated))
-        back_probs = self.backward_policy(s, curr) * self.env.mask(prev_s, prev_curr)
+        back_probs = self.backward_policy(s) * self.env.mask(prev_s)
         back_probs = torch.where(terminated, 1, back_probs[zero_to_n, actions])
         self._back_probs = back_probs.reshape(self.num_samples, -1)
         

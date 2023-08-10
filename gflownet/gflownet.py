@@ -27,7 +27,7 @@ class GFlowNet(nn.Module):
         self.backward_policy = backward_policy
         self.env = env
     
-    def mask_and_normalize(self, s, curr, probs):
+    def mask_and_normalize(self, s, probs):
         """
         Masks a vector of action probabilities to avoid illegal actions (i.e.
         actions that lead outside the state space).
@@ -37,12 +37,12 @@ class GFlowNet(nn.Module):
             
             probs: An NxA matrix of action probabilities
         """
-        probs = self.env.mask(s, curr) * probs
+        probs = self.env.mask(s) * probs
 
                   
         return probs / probs.sum(1).unsqueeze(1)
     
-    def forward_probs(self, s, curr):
+    def forward_probs(self, s):
         """
         Returns a vector of probabilities over actions in a given state.
         
@@ -51,9 +51,9 @@ class GFlowNet(nn.Module):
         """
         probs = self.forward_policy(s)
 
-        return self.mask_and_normalize(s, curr, probs)
+        return self.mask_and_normalize(s, probs)
     
-    def sample_states(self, s0, curr0, return_log=False):
+    def sample_states(self, s0, return_log=False):
         """
         Samples and returns a collection of final states from the GFlowNet.
         
@@ -65,34 +65,22 @@ class GFlowNet(nn.Module):
             and backward probabilities, the actions taken, etc.)
         """
         s = s0.clone()
-        curr = curr0.clone()
         done = torch.BoolTensor([False] * len(s))
-        log = Log(s0, curr0, self.backward_policy, self.total_flow, self.env) if return_log else None
+        log = Log(s0, self.backward_policy, self.total_flow, self.env) if return_log else None
         traj_length = 0
         while not done.all():
-            probs = self.forward_probs(s[~done], curr[~done])
-            # print(f"s: {s[~done]}")
-            # print(f"curr: {curr[~done]}")
-            # print(f"probs: {probs}")
-            actions = Categorical(probs).sample()
-            # print(f"actions: {actions}")
-            s[~done], curr[~done] = self.env.update(s[~done], curr[~done], actions)
-            traj_length += 1
-            if (curr < 0).any():
-                print("Invalid state encountered")
-                print(s)
-                print(curr)
+            probs = self.forward_probs(s[~done])
 
-            if (curr >= self.env.size).any():
-                print("Invalid state encountered : greater than size")
-                print(s)
-                print(curr)
+            actions = Categorical(probs).sample()
+            s[~done]= self.env.update(s[~done], actions)
+            traj_length += 1
+
         
             # if cnt > 5:
             #     print("Too many steps")
             #     break
             if return_log:
-                log.log(s, curr, probs, actions, done)
+                log.log(s, probs, actions, done)
         
             terminated = actions == probs.shape[-1] - 1
             done[~done] = terminated

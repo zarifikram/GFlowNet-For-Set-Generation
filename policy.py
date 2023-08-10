@@ -25,23 +25,15 @@ class BackwardPolicy:
         self.size = state_dim # no one-hot encoding, so size and state_dim are the same
     
     
-    def __call__(self, s, curr):
-
-        left_edge = curr == 0
-        right_edge = curr == self.size - 1
+    def __call__(self, s):
+        # find the left most and right most non-zero elements in each row
         
-        # find the index of the chosen number
-        chosen_num = s[torch.arange(len(s)), curr.long()]
-        has_chosen = chosen_num != 0
+        left_values = s[:, 0]
+        right_values = s[torch.arange(len(s)), (s == 0).long().argmax(dim = 1) - 1]
      
-        probs = 1 * torch.ones(len(s), self.num_actions)
-        probs[has_chosen, : self.num_actions - 3] = one_hot(chosen_num[has_chosen].long() - 1, self.num_actions - 3).float()
-        probs[~has_chosen, : self.num_actions - 3] = 0
-        probs[left_edge, self.num_actions - 2] = 0 # if leftmost, surely didn't come from left
-        probs[right_edge, self.num_actions - 3] = 0 # if rightmost, surely didn't come from right
-        probs[:, -1] = 0 # disregard termination
-        
-        # # now normalize
-        probs = probs / probs.sum(dim=1).view(-1, 1)
+        probs = torch.zeros(len(s), self.num_actions)
+        probs[torch.arange(len(s)), left_values.long() - 1] = 0.5
+        probs[torch.arange(len(s)), (right_values - 1 + (self.num_actions - 1 )/ 2).long()] = 0.5
+     
         return probs
 
