@@ -12,6 +12,10 @@ Actions = {`left_append_actions`, `right_append_actions`, `terminate`}
 
 Here `left_append_actions` push a number to the left, `right_append_actions` push a number to the right.
 
-# Results
+# Training Summary
+![Training](figs/result30.png)
+
+# Sampling Distribution
 ![Distribution](figs/distribution30.png)
+
 
