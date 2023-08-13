@@ -25,8 +25,8 @@ def trajectory_balance_loss(total_flow, rewards, fwd_probs, back_probs):
     rhs = torch.log(back_probs).sum(dim=1) + torch.log(rewards)
     
     loss = (lhs - rhs)**2
-    # loss[loss > 10000] = 1000
-    # if (loss > 1000).any():
+    # loss[loss > 1000] = 100
+    # if (loss > 100).any():
     #     print(f'WARNING: trajectory balance loss is large: {loss}. ')
     #     print(f"log total flow: {torch.log(total_flow)}")
     #     print(f"log rewards: {torch.log(rewards)}")
