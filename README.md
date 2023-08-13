@@ -11,3 +11,7 @@ Total action space = `num_actions` * 2 + 1
 Actions = {`left_append_actions`, `right_append_actions`, `terminate`}
 
 Here `left_append_actions` push a number to the left, `right_append_actions` push a number to the right.
+
+# Results
+![Distribution](figs/distribution30.png)
+
